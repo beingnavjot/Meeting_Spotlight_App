@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../provider/meeting_provider.dart';
+import '../utils/pulsing_mic_button.dart';
 import 'video_preview_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -69,25 +70,67 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 20),
 
-            // // Audio Button
-            // GestureDetector(
-            //   onLongPress: provider.toggleRecording,
-            //   onLongPressUp: provider.toggleRecording,
-            //   child: Container(
-            //     padding: const EdgeInsets.all(15),
-            //     decoration: BoxDecoration(color: provider.isRecording ? Colors.redAccent : Colors.white10, shape: BoxShape.circle),
-            //     child: const Icon(Icons.mic, color: Colors.white, size: 30),
-            //   ),
-            // ),
-            // const Center(
-            //   child: Padding(
-            //     padding: EdgeInsets.all(8.0),
-            //     child: Text("Hold to Speak", style: TextStyle(color: Colors.grey)),
-            //   ),
-            // ),
-            //
+            // --- AUDIO RECORDING SECTION ---
+
+            // Scenario A: Audio IS Recorded -> Show File & Delete Button
+            if (provider.recordedAudioPath != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.greenAccent.withOpacity(0.5)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.mic, color: Colors.greenAccent),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Audio Query Recorded",
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                          Text(
+                            // Extract just the filename from the full path
+                            provider.recordedAudioPath!.split('/').last,
+                            style: const TextStyle(color: Colors.white54, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.redAccent),
+                      onPressed: () => provider.resetRecording(),
+                      tooltip: "Remove Recording",
+                    ),
+                  ],
+                ),
+              )
+            // Scenario B: No Audio -> Show Mic Button (Your existing Pulsing Widget)
+            else
+              Column(
+                children: [
+                  Center(
+                    child: PulsingMicButton(
+                      isRecording: provider.isRecording,
+                      onLongPress: provider.toggleRecording,
+                      onLongPressUp: provider.toggleRecording,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text("Hold to Speak", style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+
+            //// ---------------------------------------------
             const SizedBox(height: 30),
 
+            // 3. Action Button
             // 3. Action Button
             ElevatedButton(
               onPressed: (provider.isAnalyzing || provider.isUploading) ? null : () => provider.analyzeVideo(textQuery: _textController.text),
@@ -95,9 +138,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 backgroundColor: const Color(0xFF4285F4),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                // Make button disabled look better
+                disabledBackgroundColor: const Color(0xFF4285F4).withOpacity(0.6),
+                disabledForegroundColor: Colors.white,
               ),
               child: provider.isAnalyzing
-                  ? const CircularProgressIndicator(color: Colors.white)
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Small Spinner
+                        const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+                        const SizedBox(width: 12),
+                        // Dynamic Text
+                        Text(provider.loadingMessage, style: const TextStyle(fontSize: 16, color: Colors.white)),
+                      ],
+                    )
                   : const Text("Spotlight Topic", style: TextStyle(fontSize: 16, color: Colors.white)),
             ),
 
@@ -131,7 +186,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => VideoPreviewScreen(videoFile: provider.videoFile!, startMs: provider.result!.startMs),
+                            builder: (_) => VideoPreviewScreen(
+                              // videoFile: provider.videoFile!,
+                              // webVideoBytes: provider.webVideoBytes!,
+                              startMs: provider.result!.startMs,
+                            ),
                           ),
                         );
                       },
